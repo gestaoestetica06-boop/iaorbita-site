@@ -1,0 +1,43 @@
+name: Publicar site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.publicacao.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Montar a pasta do site
+        run: |
+          mkdir -p _site
+          tar --exclude='./.git' --exclude='./.github' --exclude='./_site' --exclude='./README.md' --exclude='*.parte*' --exclude='*.gitkeep' -cf - . | tar -xf - -C _site
+          # O filme do topo fica em duas partes no repositório (limite de envio pelo navegador).
+          # Aqui ele volta a ser um arquivo só, conferido pela soma SHA-256 do original.
+          cat assets/media/hero.mp4.parte1 assets/media/hero.mp4.parte2 > _site/assets/media/hero.mp4
+          echo "53d61293ae536d49a3b1b669fd1456a6e3b4472d7ac90de34fc071d9cd00cb48  _site/assets/media/hero.mp4" | sha256sum -c -
+          ls -la _site _site/assets/media
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: publicacao
+        uses: actions/deploy-pages@v4
